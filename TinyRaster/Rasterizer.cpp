@@ -159,6 +159,9 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 	int dx = pt2[0] - pt1[0];
 	int dy = pt2[1] - pt1[1];
+	
+	int reflect = dy < 0 ? -1 : 1;
+	bool swap_xy = dy*reflect > dx;
 
 	int epsilon = 0;
 
@@ -170,7 +173,9 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 		
 	while (x <= ex)
 	{
-		Vector2 temp(x, y);
+		int tempX = swap_xy ? y * reflect : x;
+		int tempY = swap_xy ? x : y * reflect;
+		Vector2 temp(tempX, tempY);
 
 		Colour4 colour;
 
@@ -199,13 +204,14 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 			}
 		}
 
-		epsilon += dy;
+		epsilon = swap_xy ? epsilon + x : epsilon + (dy * reflect);
 
-		if ((epsilon << 1) >= dx)
+		if ((epsilon << 1) >= (swap_xy ? dy * reflect : dx))
 		{
 			y++;
+			
 
-			epsilon -= dx;
+			epsilon -= (swap_xy ? dy * reflect : dx);
 		}
 
 		x++;
