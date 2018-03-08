@@ -133,7 +133,7 @@ void Rasterizer::DrawPoint2D(const Vector2& pt, int size)
 	WriteRGBAToFramebuffer(x, y, mFGColour);
 }
 
-void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
+/*void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
 {
 	//The following code is basic Bresenham's line drawing algorithm.
 	//The current implementation is only capable of rasterise a line in the first octant, where dy < dx and dy/dx >= 0
@@ -210,6 +210,75 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 		{
 			y++;
 			
+
+			epsilon -= (swap_xy ? dy * reflect : dx);
+		}
+
+		x++;
+	}
+}*/
+
+void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
+{
+	Vector2 pt1 = v1.position;
+	Vector2 pt2 = v2.position;
+
+	int dx = pt2[0] - pt1[0];
+	int dy = pt2[1] - pt1[1];
+
+	int reflect = dy < 0 ? -1 : 1;
+	bool swap_xy = dy*reflect > dx;
+	bool swap_iterate = dy > dx;
+
+	int epsilon = 0;
+
+	int x = pt1[0];
+	int y = pt1[1];
+	int ex = pt2[0];
+	int ey = pt2[1];
+	float diffX = std::abs(std::abs(ex) - std::abs(x));
+	float diffY = std::abs(std::abs(pt2[1]) - std::abs(pt1[1]));
+
+	//Vector2 temp;
+	
+	while (x <= ex)
+	{
+		//temp = (swap_xy ? Vector2(y * reflect, x) : Vector2(x, y));
+		Vector2 temp(x, y);
+
+		Colour4 colour;
+
+		// Interpolated fill
+		if (mFillMode == Rasterizer::INTERPOLATED_FILLED) {
+			float i = (x - pt1[0]) / diffX;
+			colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
+		}
+		else {
+			colour = v1.colour;
+		}
+
+		SetFGColour(colour);
+		DrawPoint2D(temp);
+
+		// Line thickness
+		if (thickness > 1) {
+			float diffT = diffX + diffY;
+
+			for (int i = 0; i < thickness; i += 2) {
+				int tx = (diffY / diffT) * (i / 2);
+				int ty = -(diffX / diffT) * (i / 2);
+
+				DrawPoint2D(temp + Vector2(tx, ty));
+				DrawPoint2D(temp - Vector2(tx, ty));
+			}
+		}
+
+		//epsilon += dy;
+		epsilon += + dy;// swap_xy ? x : (dy * reflect);
+
+		if ((epsilon << 1) >= dx)
+		{
+			y+= reflect;
 
 			epsilon -= (swap_xy ? dy * reflect : dx);
 		}
