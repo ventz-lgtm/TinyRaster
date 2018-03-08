@@ -9,6 +9,7 @@
 ---------------------------------------------------------------------*/
 #include <algorithm>
 #include <math.h>
+#include <iostream>
 
 #include "Rasterizer.h"
 #include "ColourUtil.h"
@@ -133,124 +134,42 @@ void Rasterizer::DrawPoint2D(const Vector2& pt, int size)
 	WriteRGBAToFramebuffer(x, y, mFGColour);
 }
 
-/*void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
-{
-	//The following code is basic Bresenham's line drawing algorithm.
-	//The current implementation is only capable of rasterise a line in the first octant, where dy < dx and dy/dx >= 0
-	//See if you want to read ahead https://www.cs.helsinki.fi/group/goa/mallinnus/lines/bresenh.html
-	
-	//TODO:
-	//Ex 1.1 Complete the implementation of Rasterizer::DrawLine2D method. 
-	//This method currently consists of a partially implemented Bresenham algorithm.
-	//You must extend its implementation so that it is capable of drawing 2D lines with arbitrary gradient(slope).
-	//Use Test 1 (Press F1) to test your implementation
-	
-	//Ex 1.2 Extend the implementation of Rasterizer::DrawLine2D so that it is capable of drawing lines based on a given thickness.
-	//Note: The thickness is passed as an argument int thickness.
-	//Use Test 2 (Press F2) to test your implementation
-
-	//Ex 1.3 Extend the implementation of Rasterizer::DrawLine2D so that it is capable of interpolating colour across a line when each end-point has different colours.
-	//Note: The variable mFillMode indicates if the fill mode is set to INTERPOLATED_FILL. 
-	//The colour of each point should be linearly interpolated using the colours of v1 and v2.
-	//Use Test 2 (Press F2) to test your implementation
-
-	Vector2 pt1 = v1.position;
-	Vector2 pt2 = v2.position;
-
-	int dx = pt2[0] - pt1[0];
-	int dy = pt2[1] - pt1[1];
-	
-	int reflect = dy < 0 ? -1 : 1;
-	bool swap_xy = dy*reflect > dx;
-
-	int epsilon = 0;
-
-	int x = pt1[0];
-	int y = pt1[1];
-	int ex = pt2[0];
-	float diffX = std::abs(std::abs(ex) - std::abs(x));
-	float diffY = std::abs(std::abs(pt2[1]) - std::abs(pt1[1]));
-		
-	while (x <= ex)
-	{
-		int tempX = swap_xy ? y * reflect : x;
-		int tempY = swap_xy ? x : y * reflect;
-		Vector2 temp(tempX, tempY);
-
-		Colour4 colour;
-
-		// Interpolated fill
-		if (mFillMode == Rasterizer::INTERPOLATED_FILLED) {
-			float i = (x - pt1[0]) / diffX;
-			colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
-		}
-		else {
-			colour = v1.colour;
-		}
-				
-		SetFGColour(colour);
-		DrawPoint2D(temp);
-
-		// Line thickness
-		if (thickness > 1) {
-			float diffT = diffX + diffY;
-
-			for (int i = 0; i < thickness; i += 2) {
-				int tx = (diffY / diffT) * (i / 2);
-				int ty = -(diffX / diffT) * (i / 2);
-
-				DrawPoint2D(temp + Vector2(tx, ty));
-				DrawPoint2D(temp - Vector2(tx, ty));
-			}
-		}
-
-		epsilon = swap_xy ? epsilon + x : epsilon + (dy * reflect);
-
-		if ((epsilon << 1) >= (swap_xy ? dy * reflect : dx))
-		{
-			y++;
-			
-
-			epsilon -= (swap_xy ? dy * reflect : dx);
-		}
-
-		x++;
-	}
-}*/
-
 void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
 {
 	Vector2 pt1 = v1.position;
 	Vector2 pt2 = v2.position;
 
-	int dx = pt2[0] - pt1[0];
-	int dy = pt2[1] - pt1[1];
+	bool swap_x = pt2[0] < pt1[0];
+	bool swap_y = pt2[1] < pt1[1];
+
+	float dx = swap_x ? pt1[0] - pt2[0] : pt2[0] - pt1[0];
+	float dy = swap_x ? pt1[1] - pt2[1] : pt2[1] - pt1[1];
 
 	int reflect = dy < 0 ? -1 : 1;
 	bool swap_xy = dy*reflect > dx;
-	bool swap_iterate = dy > dx;
-
 	int epsilon = 0;
 
-	int x = pt1[0];
-	int y = pt1[1];
-	int ex = pt2[0];
-	int ey = pt2[1];
-	float diffX = std::abs(std::abs(ex) - std::abs(x));
-	float diffY = std::abs(std::abs(pt2[1]) - std::abs(pt1[1]));
+	int sx = swap_xy ? reflect < 0 ? swap_x ? pt1[1] : pt2[1] : swap_x ? pt2[1] : pt1[1] : swap_x ? pt2[0] : pt1[0];
+	int y = swap_xy ? reflect < 0 ? swap_x ? pt1[0] : pt2[0] : swap_x ? pt2[0] : pt1[0] : swap_x ? pt2[1] : pt1[1];
+	int ex = swap_xy ? reflect < 0 ? swap_x ? pt2[1] : pt1[1] : swap_x ? pt1[1] : pt2[1] : swap_x ? pt1[0] : pt2[0];
 
-	//Vector2 temp;
-	
+	int x = sx;
+	y *= reflect;
+
+	Vector2 temp;
+
 	while (x <= ex)
 	{
-		//temp = (swap_xy ? Vector2(y * reflect, x) : Vector2(x, y));
-		Vector2 temp(x, y);
+		temp[0] = swap_xy ? y*reflect : x;
+		temp[1] = swap_xy ? x : y*reflect;
+
+		if (temp[0] < 0 || temp[1] < 0) { return; }
 
 		Colour4 colour;
 
 		// Interpolated fill
 		if (mFillMode == Rasterizer::INTERPOLATED_FILLED) {
-			float i = (x - pt1[0]) / diffX;
+			float i = (x - pt1[0]) / dx;
 			colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
 		}
 		else {
@@ -262,27 +181,46 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 		// Line thickness
 		if (thickness > 1) {
-			float diffT = diffX + diffY;
+			float dt = abs(dx) + abs(dy);
 
-			for (int i = 0; i < thickness; i += 2) {
-				int tx = (diffY / diffT) * (i / 2);
-				int ty = -(diffX / diffT) * (i / 2);
+			for (int i = 1; i < thickness; i++) {
+				float xp = dx / dt;
+				float yp = dy / dt;
 
-				DrawPoint2D(temp + Vector2(tx, ty));
-				DrawPoint2D(temp - Vector2(tx, ty));
+				int tx = -(i * yp);
+				int ty = (i * xp);
+
+				if (swap_y) {
+					int newY = temp[1] - ty;
+					int newX = temp[0] - tx;
+
+					if (newX > 0 && newY > 0) {
+						Vector2 temp2(newX, newY);
+						DrawPoint2D(temp2);
+					}
+				}
+				else {
+
+					int newY = temp[1] + ty;
+					int newX = temp[0] + tx;
+
+					if (newX > 0 && newY > 0) {
+						Vector2 temp2(newX, newY);
+						DrawPoint2D(temp2);
+					}
+				}
+				
 			}
 		}
 
-		//epsilon += dy;
-		epsilon += + dy;// swap_xy ? x : (dy * reflect);
+		epsilon += swap_xy ? dx : dy*reflect;
 
-		if ((epsilon << 1) >= dx)
+		if ((epsilon << 1) >= (swap_xy ? dy*reflect : dx))
 		{
-			y+= reflect;
+			y++;
 
-			epsilon -= (swap_xy ? dy * reflect : dx);
+			epsilon -= swap_xy ? dy*reflect : dx;
 		}
-
 		x++;
 	}
 }
