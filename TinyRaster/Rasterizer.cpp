@@ -279,85 +279,59 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 	
 	int minShapeY = INT_MAX;
 	int maxShapeY = INT_MIN;
+	int minShapeX = INT_MAX;
+	int maxShapeX = INT_MIN;
 
-	// TODO: 
-	// Find Min and Max Y value for shape
-	// Sort vertices by X smallest to largest
-	// For each pixel row from min to max Y value, scanline accross X axis
-		// For each edge (pair of vertices) which intersects current Y row:
-			// Find min/max X for edge
-			// Find edge slope
-			// Calculate X position which the current Y row intersects with
-			// Find slope for next intersecting edge
-			// Calculate X position which the current Y row intersects for next intersecting edge
-			// Draw line between first and second X intersect position
-
-	// Copy into sorted list & find min/max y values
-	Vertex2d* sortedVertices = new Vertex2d[count];
 	for (int i = 0; i < count; i++) {
-		sortedVertices[i] = vertices[i];
-
 		if (minShapeY > vertices[i].position[1]) {
 			minShapeY = vertices[i].position[1];
 		}
 		else if (maxShapeY < vertices[i].position[1]) {
 			maxShapeY = vertices[i].position[1];
 		}
+
+		if (minShapeX > vertices[i].position[0]) {
+			minShapeX = vertices[i].position[0];
+		}
+		else if (maxShapeX < vertices[i].position[0]) {
+			maxShapeX = vertices[i].position[0];
+		}
 	}
 
-	// Bubble sort into order of smallest X to largest
-	for (int i = 0; i < count; i++)
-	{
-		for (int j = count - 1; j > i; j--)
+	std::vector<ScanlineLUTItem> *lutTable = new std::vector<ScanlineLUTItem>;
+	ScanlineLUTItem l;
+
+	for (int y = minShapeY; y < maxShapeY; y++) {
+
+		for (int v = 0; v < count - 1; v++) {
+			Vector2 v1 = vertices[v].position;
+			Vector2 v2 = vertices[v + 1].position;
+			
+			if(y > v1[1] && y < v2[1]){
+				int x = v1[0] + (y - v1[1]) * ((v1[0] - v2[0]) / (v1[1] - v2[1]));
+				
+				l.colour = Colour4();
+				l.pos_x = x;
+				lutTable->push_back(l);
+			}
+		}
+
+		if (lutTable->size() != 0)
 		{
-			if (sortedVertices[j].position[0] < sortedVertices[j - 1].position[0])
+			for (int i = 0; i < lutTable->size() - 1;)
 			{
-				Vertex2d temp = sortedVertices[j - 1];
-				sortedVertices[j - 1] = sortedVertices[j];
-				sortedVertices[j] = temp;
+				int start = lutTable->at(i++).pos_x;
+				int end = lutTable->at(i++).pos_x;
+
+				while (start < end)
+				{
+					DrawPoint2D(Vector2(start, y));
+					start++;
+				}
 			}
 		}
 	}
-
-	for (int y = minShapeY; y < maxShapeY; y++) {
-		// Foreach pixel row
-
-		for (int r = 0; r < count; r += 2) {
-			// Foreach vertex pair
-
-			Vector2 vx = sortedVertices[y].position;
-			Vector2 vy = sortedVertices[y + 1].position;
-
-			int minX = std::min(vx[0], vy[0]);
-			//int maxX = std::max(vx[0], vy[0]);
-			int minY = std::min(vx[1], vy[1]);
-			int maxY = std::max(vx[1], vy[1]);
-
-			if (minY < minShapeY || maxY > maxShapeY) { continue; }
-
-			int slope1 = ((vy[1] - vy[0]) / (vx[1] - vx[0]));
-			int p1 = minX + ((y - minY) * slope1);
-
-			vx = sortedVertices[y + 2].position;
-			vy = sortedVertices[y + 3].position;
-
-			int minX2 = std::min(vx[0], vy[0]);
-			int minY2 = std::min(vx[1], vy[1]);
-
-			int slope2 = ((vy[1] - vy[0]) / (vx[1] - vx[0]));
-			int p2 = minX2 + ((y - minY2) * slope2);
-
-			Vertex2d vt1;
-			Vertex2d vt2;
-			vt1.position = Vector2(y, p1);
-			vt2.position = Vector2(y, p2);
-
-			DrawLine2D(vt1, vt2);
-
-			r += 2;
-		}
-		
-	}
+	
 }
 
 void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, int count)

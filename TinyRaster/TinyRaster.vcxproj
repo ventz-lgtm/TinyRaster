@@ -34,7 +34,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -47,7 +47,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -148,7 +148,6 @@
   <ItemGroup>
     <ClInclude Include="AssignmentTests.h" />
     <ClInclude Include="ColourUtil.h" />
-    <ClInclude Include="EdgeBucket.h" />
     <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="TestApplication.h" />
     <ClInclude Include="AppWindow.h" />
@@ -163,7 +162,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssignmentTests.cpp" />
-    <ClCompile Include="EdgeBucket.cpp" />
     <ClCompile Include="Framebuffer.cpp" />
     <ClCompile Include="TestApplication.cpp" />
     <ClCompile Include="AppWindow.cpp" />
