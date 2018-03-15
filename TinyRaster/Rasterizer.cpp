@@ -277,81 +277,87 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 	//To do alpha blending during filling, the new colour of a point should be combined with the existing colour in the framebuffer using the alpha value.
 	//Use Test 6 (Press F6) to test your solution
 	
-	int minY = INT_MAX;
-	int maxY = INT_MIN;
+	int minShapeY = INT_MAX;
+	int maxShapeY = INT_MIN;
 
-	int curSort = 0;
-	Vertex2d* sortedEdges = new Vertex2d[count];
+	// TODO: 
+	// Find Min and Max Y value for shape
+	// Sort vertices by X smallest to largest
+	// For each pixel row from min to max Y value, scanline accross X axis
+		// For each edge (pair of vertices) which intersects current Y row:
+			// Find min/max X for edge
+			// Find edge slope
+			// Calculate X position which the current Y row intersects with
+			// Find slope for next intersecting edge
+			// Calculate X position which the current Y row intersects for next intersecting edge
+			// Draw line between first and second X intersect position
 
+	// Copy into sorted list & find min/max y values
+	Vertex2d* sortedVertices = new Vertex2d[count];
 	for (int i = 0; i < count; i++) {
-		if (curSort == 0) {
-			sortedEdges[0] = vertices[i];
+		sortedVertices[i] = vertices[i];
+
+		if (minShapeY > vertices[i].position[1]) {
+			minShapeY = vertices[i].position[1];
 		}
-		else {
-			for (int a = 0; a < curSort; a++) {
-				if (a == curSort - 1) {
-					sortedEdges[curSort] = vertices[i];
-				}
-				else {
-					int minSort = sortedEdges[a].position[0];
-					if (sortedEdges[a].position[1] < minSort) {
-						minSort = sortedEdges[a].position[1];
-					}
+		else if (maxShapeY < vertices[i].position[1]) {
+			maxShapeY = vertices[i].position[1];
+		}
+	}
 
-					int minCur = vertices[i].position[0];
-					if (vertices[i].position[1] < minCur) {
-						minCur = vertices[i].position[1];
-					}
-
-					if (minCur < minSort) {
-						Vertex2d temp;
-						for (int m = a; m < curSort; m++) {
-							sortedEdges[m] = temp;
-
-							if (m < curSort) {
-								temp = sortedEdges[m + 1];
-								sortedEdges[m + 1] = sortedEdges[m];
-							}
-						}
-
-						sortedEdges[a] = vertices[i];
-					}
-				}
+	// Bubble sort into order of smallest X to largest
+	for (int i = 0; i < count; i++)
+	{
+		for (int j = count - 1; j > i; j--)
+		{
+			if (sortedVertices[j].position[0] < sortedVertices[j - 1].position[0])
+			{
+				Vertex2d temp = sortedVertices[j - 1];
+				sortedVertices[j - 1] = sortedVertices[j];
+				sortedVertices[j] = temp;
 			}
 		}
-
-		curSort++;
 	}
 
-	int* mins = new int[count];
-	int* maxs = new int[count];
+	for (int y = minShapeY; y < maxShapeY; y++) {
+		// Foreach pixel row
 
-	for (int i = 0; i < count; i++) {
-		Vector2 v = vertices[i].position;
-		
-		int min = v[0];
-		int max = v[1];
-		if (min > max) {
-			max = v[0];
-			min = v[1];
+		for (int r = 0; r < count; r += 2) {
+			// Foreach vertex pair
+
+			Vector2 vx = sortedVertices[y].position;
+			Vector2 vy = sortedVertices[y + 1].position;
+
+			int minX = std::min(vx[0], vy[0]);
+			//int maxX = std::max(vx[0], vy[0]);
+			int minY = std::min(vx[1], vy[1]);
+			int maxY = std::max(vx[1], vy[1]);
+
+			if (minY < minShapeY || maxY > maxShapeY) { continue; }
+
+			int slope1 = ((vy[1] - vy[0]) / (vx[1] - vx[0]));
+			int p1 = minX + ((y - minY) * slope1);
+
+			vx = sortedVertices[y + 2].position;
+			vy = sortedVertices[y + 3].position;
+
+			int minX2 = std::min(vx[0], vy[0]);
+			int minY2 = std::min(vx[1], vy[1]);
+
+			int slope2 = ((vy[1] - vy[0]) / (vx[1] - vx[0]));
+			int p2 = minX2 + ((y - minY2) * slope2);
+
+			Vertex2d vt1;
+			Vertex2d vt2;
+			vt1.position = Vector2(y, p1);
+			vt2.position = Vector2(y, p2);
+
+			DrawLine2D(vt1, vt2);
+
+			r += 2;
 		}
-
-		mins[i] = min;
-		maxs[i] = max;
-
-		if (minY > min) {
-			minY = min;
-		}
-		else if (maxY < max) {
-			maxY = max;
-		}
-
 		
 	}
-
-	int c = count - 1;
-
-	
 }
 
 void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, int count)
