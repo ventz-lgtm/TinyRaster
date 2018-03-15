@@ -150,9 +150,10 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 	int epsilon = 0;
 
 	int sx = swap_xy ? reflect < 0 ? swap_x ? pt1[1] : pt2[1] : swap_x ? pt2[1] : pt1[1] : swap_x ? pt2[0] : pt1[0];
-	int y = swap_xy ? reflect < 0 ? swap_x ? pt1[0] : pt2[0] : swap_x ? pt2[0] : pt1[0] : swap_x ? pt2[1] : pt1[1];
+	int sy = swap_xy ? reflect < 0 ? swap_x ? pt1[0] : pt2[0] : swap_x ? pt2[0] : pt1[0] : swap_x ? pt2[1] : pt1[1];
 	int ex = swap_xy ? reflect < 0 ? swap_x ? pt2[1] : pt1[1] : swap_x ? pt1[1] : pt2[1] : swap_x ? pt1[0] : pt2[0];
 
+	int y = sy;
 	int x = sx;
 	y *= reflect;
 
@@ -169,7 +170,15 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 		// Interpolated fill
 		if (mFillMode == Rasterizer::INTERPOLATED_FILLED) {
-			float i = (x - pt1[0]) / dx;
+			float diff = swap_xy ? abs(dy) : abs(dx);
+			int curX = x - sx;
+
+			float i = abs((curX / diff) * reflect);
+			
+			if (swap_x) {
+				i = 1 - i;
+			}
+
 			colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
 		}
 		else {
@@ -183,16 +192,24 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 		if (thickness > 1) {
 			float dt = abs(dx) + abs(dy);
 
-			for (int i = 1; i < thickness; i++) {
+			for (int i = 1; i < thickness; i += 2) {
 				float xp = dx / dt;
 				float yp = dy / dt;
 
-				int tx = -(i * yp);
-				int ty = (i * xp);
+				int tx = -((i / 2) * yp);
+				int ty = ((i / 2) * xp);
 
 				if (swap_y) {
 					int newY = temp[1] - ty;
 					int newX = temp[0] - tx;
+
+					if (newX > 0 && newY > 0) {
+						Vector2 temp2(newX, newY);
+						DrawPoint2D(temp2);
+					}
+
+					newY = temp[1] + ty;
+					newX = temp[0] + tx;
 
 					if (newX > 0 && newY > 0) {
 						Vector2 temp2(newX, newY);
@@ -203,6 +220,14 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 					int newY = temp[1] + ty;
 					int newX = temp[0] + tx;
+
+					if (newX > 0 && newY > 0) {
+						Vector2 temp2(newX, newY);
+						DrawPoint2D(temp2);
+					}
+
+					newY = temp[1] - ty;
+					newX = temp[0] - tx;
 
 					if (newX > 0 && newY > 0) {
 						Vector2 temp2(newX, newY);
@@ -227,14 +252,13 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 void Rasterizer::DrawUnfilledPolygon2D(const Vertex2d * vertices, int count)
 {
-	//TODO:
-	//Ex 2.1 Implement the Rasterizer::DrawUnfilledPolygon2D method so that it is capable of drawing an unfilled polygon, i.e. only the edges of a polygon are rasterised. 
-	//Please note, in order to complete this exercise, you must first complete Ex1.1 since DrawLine2D method is reusable here.
-	//Note: The edges of a given polygon can be found by conntecting two adjacent vertices in the vertices array.
-	//Use Test 3 (Press F3) to test your solution.
 	for (int i = 0; i < count; i++) {
-		//DrawLine2D(*(vertices + i), *(vertices + i + 1));
-		DrawLine2D(vertices[i], vertices[i + 1], 3);
+		if (i >= count - 1) {
+			DrawLine2D(vertices[0], vertices[i]);
+		}
+		else {
+			DrawLine2D(vertices[i], vertices[i + 1]);
+		}
 	}
 }
 
@@ -252,6 +276,32 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 	//Note: The variable mBlendMode indicates if the blend mode is set to alpha blending.
 	//To do alpha blending during filling, the new colour of a point should be combined with the existing colour in the framebuffer using the alpha value.
 	//Use Test 6 (Press F6) to test your solution
+
+	int yMin = INT_MAX;
+	int yMax = INT_MIN;
+	int xMin = INT_MAX;
+	int xMax = INT_MIN;
+
+	for (int i = 0; i < count; i++) {
+		Vector2 v = vertices[i].position;
+		if (v[1] < yMin) {
+			yMin = v[1];
+		}
+		else if (v[1] > yMax) {
+			yMax = v[1];
+		}
+
+		if (v[0] < xMin) {
+			xMin = v[0];
+		}
+		else if (v[0] > xMax) {
+			xMax = v[0];
+		}
+	}
+
+	for (int y = yMin; y < yMax; y++) {
+
+	}
 }
 
 void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, int count)
