@@ -276,32 +276,82 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 	//Note: The variable mBlendMode indicates if the blend mode is set to alpha blending.
 	//To do alpha blending during filling, the new colour of a point should be combined with the existing colour in the framebuffer using the alpha value.
 	//Use Test 6 (Press F6) to test your solution
+	
+	int minY = INT_MAX;
+	int maxY = INT_MIN;
 
-	int yMin = INT_MAX;
-	int yMax = INT_MIN;
-	int xMin = INT_MAX;
-	int xMax = INT_MIN;
+	int curSort = 0;
+	Vertex2d* sortedEdges = new Vertex2d[count];
+
+	for (int i = 0; i < count; i++) {
+		if (curSort == 0) {
+			sortedEdges[0] = vertices[i];
+		}
+		else {
+			for (int a = 0; a < curSort; a++) {
+				if (a == curSort - 1) {
+					sortedEdges[curSort] = vertices[i];
+				}
+				else {
+					int minSort = sortedEdges[a].position[0];
+					if (sortedEdges[a].position[1] < minSort) {
+						minSort = sortedEdges[a].position[1];
+					}
+
+					int minCur = vertices[i].position[0];
+					if (vertices[i].position[1] < minCur) {
+						minCur = vertices[i].position[1];
+					}
+
+					if (minCur < minSort) {
+						Vertex2d temp;
+						for (int m = a; m < curSort; m++) {
+							sortedEdges[m] = temp;
+
+							if (m < curSort) {
+								temp = sortedEdges[m + 1];
+								sortedEdges[m + 1] = sortedEdges[m];
+							}
+						}
+
+						sortedEdges[a] = vertices[i];
+					}
+				}
+			}
+		}
+
+		curSort++;
+	}
+
+	int* mins = new int[count];
+	int* maxs = new int[count];
 
 	for (int i = 0; i < count; i++) {
 		Vector2 v = vertices[i].position;
-		if (v[1] < yMin) {
-			yMin = v[1];
-		}
-		else if (v[1] > yMax) {
-			yMax = v[1];
+		
+		int min = v[0];
+		int max = v[1];
+		if (min > max) {
+			max = v[0];
+			min = v[1];
 		}
 
-		if (v[0] < xMin) {
-			xMin = v[0];
+		mins[i] = min;
+		maxs[i] = max;
+
+		if (minY > min) {
+			minY = min;
 		}
-		else if (v[0] > xMax) {
-			xMax = v[0];
+		else if (maxY < max) {
+			maxY = max;
 		}
+
+		
 	}
 
-	for (int y = yMin; y < yMax; y++) {
+	int c = count - 1;
 
-	}
+	
 }
 
 void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, int count)

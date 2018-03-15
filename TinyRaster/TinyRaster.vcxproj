@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="AssignmentTests.h" />
     <ClInclude Include="ColourUtil.h" />
+    <ClInclude Include="EdgeBucket.h" />
     <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="TestApplication.h" />
     <ClInclude Include="AppWindow.h" />
@@ -162,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssignmentTests.cpp" />
+    <ClCompile Include="EdgeBucket.cpp" />
     <ClCompile Include="Framebuffer.cpp" />
     <ClCompile Include="TestApplication.cpp" />
     <ClCompile Include="AppWindow.cpp" />
