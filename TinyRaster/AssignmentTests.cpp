@@ -54,10 +54,14 @@ namespace AssignmentTests {
 		rasterizer->SetGeometryMode(Rasterizer::POLYGON);
 		rasterizer->SetFillMode(Rasterizer::SOLID_FILLED);
 
+		
 		rasterizer->ScanlineFillPolygon2D(rectangle1, 4);
 		rasterizer->ScanlineFillPolygon2D(triangle, 3);
 		rasterizer->ScanlineFillPolygon2D(square, 4);
 		rasterizer->ScanlineFillPolygon2D(pentagon, 5);
+		
+
+		//rasterizer->ScanlineFillPolygon2D(pentagon, 5);
 	}
 
 	void AssignmentTest05(Rasterizer * rasterizer)

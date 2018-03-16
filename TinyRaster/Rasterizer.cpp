@@ -252,14 +252,11 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 
 void Rasterizer::DrawUnfilledPolygon2D(const Vertex2d * vertices, int count)
 {
-	for (int i = 0; i < count; i++) {
-		if (i >= count - 1) {
-			DrawLine2D(vertices[0], vertices[i]);
-		}
-		else {
-			DrawLine2D(vertices[i], vertices[i + 1]);
-		}
+	for (int i = 0; i < count - 1; i++) {
+		DrawLine2D(vertices[i], vertices[i + 1]);
 	}
+
+	DrawLine2D(vertices[0], vertices[count - 1]);
 }
 
 void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
@@ -303,13 +300,15 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 
 	for (int y = minShapeY; y < maxShapeY; y++) {
 
-		for (int v = 0; v < count - 1; v++) {
-			Vector2 v1 = vertices[v].position;
-			Vector2 v2 = vertices[v + 1].position;
+		
+
+		for (int v = 0; v < count - 1;) {
+			Vector2 v1 = vertices[v++].position;
+			Vector2 v2 = vertices[v++].position;
 			
-			if(y > v1[1] && y < v2[1]){
+			if((y > v1[1] && y < v2[1]) || (y > v2[1] && y < v1[1])){
 				int x = v1[0] + (y - v1[1]) * ((v1[0] - v2[0]) / (v1[1] - v2[1]));
-				
+
 				l.colour = Colour4();
 				l.pos_x = x;
 				lutTable->push_back(l);
@@ -325,13 +324,15 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 
 				while (start < end)
 				{
-					DrawPoint2D(Vector2(start, y));
+					if (start > 0 && y > 0) {
+						DrawPoint2D(Vector2(start, y));
+					}
+					
 					start++;
 				}
 			}
 		}
 	}
-	
 }
 
 void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, int count)
