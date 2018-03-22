@@ -131,6 +131,8 @@ void Rasterizer::DrawPoint2D(const Vector2& pt, int size)
 	int x = pt[0];
 	int y = pt[1];
 	
+	if (x < 0 || y < 0) { return; }
+
 	WriteRGBAToFramebuffer(x, y, mFGColour);
 }
 
@@ -163,8 +165,6 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 	{
 		temp[0] = swap_xy ? y*reflect : x;
 		temp[1] = swap_xy ? x : y*reflect;
-
-		if (temp[0] < 0 || temp[1] < 0) { return; }
 
 		Colour4 colour;
 
@@ -203,36 +203,28 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 					int newY = temp[1] - ty;
 					int newX = temp[0] - tx;
 
-					if (newX > 0 && newY > 0) {
-						Vector2 temp2(newX, newY);
-						DrawPoint2D(temp2);
-					}
+					Vector2 temp2(newX, newY);
+					DrawPoint2D(temp2);
 
 					newY = temp[1] + ty;
 					newX = temp[0] + tx;
 
-					if (newX > 0 && newY > 0) {
-						Vector2 temp2(newX, newY);
-						DrawPoint2D(temp2);
-					}
+					Vector2 temp3(newX, newY);
+					DrawPoint2D(temp3);
 				}
 				else {
 
 					int newY = temp[1] + ty;
 					int newX = temp[0] + tx;
 
-					if (newX > 0 && newY > 0) {
-						Vector2 temp2(newX, newY);
-						DrawPoint2D(temp2);
-					}
+					Vector2 temp2(newX, newY);
+					DrawPoint2D(temp2);
 
 					newY = temp[1] - ty;
 					newX = temp[0] - tx;
 
-					if (newX > 0 && newY > 0) {
-						Vector2 temp2(newX, newY);
-						DrawPoint2D(temp2);
-					}
+					Vector2 temp3(newX, newY);
+					DrawPoint2D(temp3);
 				}
 				
 			}
@@ -258,6 +250,14 @@ void Rasterizer::DrawUnfilledPolygon2D(const Vertex2d * vertices, int count)
 
 	DrawLine2D(vertices[0], vertices[count - 1]);
 }
+
+struct less_than_key
+{
+	inline bool operator() (const ScanlineLUTItem& struct1, const ScanlineLUTItem& struct2)
+	{
+		return (struct1.pos_x < struct2.pos_x);
+	}
+};
 
 void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 {
@@ -295,18 +295,27 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 		}
 	}
 
-	std::vector<ScanlineLUTItem> *lutTable = new std::vector<ScanlineLUTItem>;
 	ScanlineLUTItem l;
+	Vector2 point;
 
 	for (int y = minShapeY; y < maxShapeY; y++) {
+		if (y < 0) { y = 0;  continue; }
 
-		
+		std::vector<ScanlineLUTItem> *lutTable = new std::vector<ScanlineLUTItem>;
 
-		for (int v = 0; v < count - 1;) {
+		for (int v = 0; v < count;) {
 			Vector2 v1 = vertices[v++].position;
-			Vector2 v2 = vertices[v++].position;
+			Vector2 v2;
 			
-			if((y > v1[1] && y < v2[1]) || (y > v2[1] && y < v1[1])){
+			if (v == count) {
+				v2 = vertices[0].position;
+			}
+			else {
+				v2 = vertices[v].position;
+			}
+			
+			
+			if((y >= v1[1] && y < v2[1]) || (y >= v2[1] && y < v1[1])){
 				int x = v1[0] + (y - v1[1]) * ((v1[0] - v2[0]) / (v1[1] - v2[1]));
 
 				l.colour = Colour4();
@@ -315,21 +324,38 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 			}
 		}
 
+		std::sort(lutTable->begin(), lutTable->end(), less_than_key());
+
 		if (lutTable->size() != 0)
 		{
+			bool draw = true;
+
 			for (int i = 0; i < lutTable->size() - 1;)
 			{
 				int start = lutTable->at(i++).pos_x;
-				int end = lutTable->at(i++).pos_x;
+				int end = lutTable->at(i).pos_x;
 
-				while (start < end)
-				{
-					if (start > 0 && y > 0) {
-						DrawPoint2D(Vector2(start, y));
+				if (draw) {
+					if (start > end) {
+						int temp = start;
+						start = end;
+						end = temp;
 					}
-					
-					start++;
+
+					while (start < end)
+					{
+						if (start > 0 && y > 0) {
+							point[0] = start;
+							point[1] = y;
+
+							DrawPoint2D(point);
+						}
+
+						start++;
+					}
 				}
+
+				draw = !draw;
 			}
 		}
 	}
@@ -342,6 +368,111 @@ void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, in
 	//Note: mFillMode is set to INTERPOLATED_FILL
 	//		This exercise will be more straightfoward if Ex 1.3 has been implemented in DrawLine2D
 	//Use Test 7 to test your solution
+
+	int minShapeY = INT_MAX;
+	int maxShapeY = INT_MIN;
+	int minShapeX = INT_MAX;
+	int maxShapeX = INT_MIN;
+
+	for (int i = 0; i < count; i++) {
+		if (minShapeY > vertices[i].position[1]) {
+			minShapeY = vertices[i].position[1];
+		}
+		else if (maxShapeY < vertices[i].position[1]) {
+			maxShapeY = vertices[i].position[1];
+		}
+
+		if (minShapeX > vertices[i].position[0]) {
+			minShapeX = vertices[i].position[0];
+		}
+		else if (maxShapeX < vertices[i].position[0]) {
+			maxShapeX = vertices[i].position[0];
+		}
+	}
+
+	ScanlineLUTItem l;
+	Vector2 point;
+
+	for (int y = minShapeY; y < maxShapeY; y++) {
+		if (y < 0) { y = 0;  continue; }
+
+		std::vector<ScanlineLUTItem> *lutTable = new std::vector<ScanlineLUTItem>;
+
+		for (int v = 0; v < count;) {
+			Vector2 v1 = vertices[v++].position;
+			Vector2 v2;
+
+			if (v == count) {
+				v2 = vertices[0].position;
+			}
+			else {
+				v2 = vertices[v].position;
+			}
+
+
+			if ((y >= v1[1] && y < v2[1]) || (y >= v2[1] && y < v1[1])) {
+				int x = v1[0] + (y - v1[1]) * ((v1[0] - v2[0]) / (v1[1] - v2[1]));
+
+				float slope = (v2[1] - v1[1]) / (v2[0] - v1[0]);
+				float lerp = (v2[1] - y) / (v2[1] - v1[1]);
+
+				Colour4 colour = ColourUtil::Interpolate(vertices[v-1].colour, vertices[v].colour, lerp);
+
+				l.colour = vertices[v - 1].colour;
+				l.pos_x = x;
+				lutTable->push_back(l);
+			}
+		}
+
+		std::sort(lutTable->begin(), lutTable->end(), less_than_key());
+
+		if (lutTable->size() != 0)
+		{
+			bool draw = true;
+
+			for (int i = 0; i < lutTable->size() - 1;)
+			{
+				ScanlineLUTItem startLUT = lutTable->at(i++);
+				ScanlineLUTItem endLUT = lutTable->at(i++);
+
+				int start = startLUT.pos_x;
+				int end = endLUT.pos_x;
+
+				if (draw) {
+					if (start > end) {
+						int temp = start;
+						start = end;
+						end = temp;
+					}
+
+					float initial = start;
+
+					while (start < end)
+					{
+						if (start > 0 && y > 0) {
+							point[0] = start;
+							point[1] = y;
+
+							if (mFillMode == Rasterizer::INTERPOLATED_FILLED) {
+								float total = end - initial;
+								float diffX = end - start;
+								float lerp = diffX / total;
+
+								Colour4 colour = ColourUtil::Interpolate(startLUT.colour, endLUT.colour, lerp);
+
+								SetFGColour(colour);
+							}
+							DrawPoint2D(point);
+						}
+
+						start++;
+					}
+				}
+
+				draw = !draw;
+			}
+		}
+	}
 }
 
 void Rasterizer::DrawCircle2D(const Circle2D & inCircle, bool filled)
