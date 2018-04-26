@@ -133,7 +133,18 @@ void Rasterizer::DrawPoint2D(const Vector2& pt, int size)
 	
 	if (x < 0 || y < 0) { return; }
 
-	WriteRGBAToFramebuffer(x, y, mFGColour);
+	if (mBlendMode == Rasterizer::NO_BLEND) {
+		WriteRGBAToFramebuffer(x, y, mFGColour);
+	}
+	else if (mBlendMode == Rasterizer::ALPHA_BLEND) {
+		// Retrieve current colour of frame buffer at location
+
+		PixelRGBA *pixel = mFramebuffer->GetBuffer();
+		Colour4 c = pixel[y*mWidth + x];
+
+		// Write the interpolated alpha blend with the two colours instead
+		WriteRGBAToFramebuffer(x, y, ColourUtil::Interpolate(c, mFGColour, mFGColour[3]));
+	}
 }
 
 void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickness)
@@ -179,7 +190,12 @@ void Rasterizer::DrawLine2D(const Vertex2d & v1, const Vertex2d & v2, int thickn
 				i = 1 - i;
 			}
 
-			colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
+			if ((swap_xy && !swap_y && swap_x) || (swap_xy && swap_y && !swap_x)) {
+				colour = ColourUtil::Interpolate(v2.colour, v1.colour, i);
+			}
+			else {
+				colour = ColourUtil::Interpolate(v1.colour, v2.colour, i);
+			}
 		}
 		else {
 			colour = v1.colour;
@@ -279,6 +295,8 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 	int minShapeX = INT_MAX;
 	int maxShapeX = INT_MIN;
 
+	SetFGColour(vertices[0].colour);
+
 	for (int i = 0; i < count; i++) {
 		if (minShapeY > vertices[i].position[1]) {
 			minShapeY = vertices[i].position[1];
@@ -358,6 +376,8 @@ void Rasterizer::ScanlineFillPolygon2D(const Vertex2d * vertices, int count)
 				draw = !draw;
 			}
 		}
+
+		delete lutTable;
 	}
 }
 
@@ -416,9 +436,16 @@ void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, in
 				float slope = (v2[1] - v1[1]) / (v2[0] - v1[0]);
 				float lerp = (v2[1] - y) / (v2[1] - v1[1]);
 
-				Colour4 colour = ColourUtil::Interpolate(vertices[v-1].colour, vertices[v].colour, lerp);
+				Colour4 colour;
 
-				l.colour = vertices[v - 1].colour;
+				if (v == count) {
+					colour = ColourUtil::Interpolate(vertices[0].colour, vertices[v - 1].colour, lerp);
+				}
+				else {
+					colour = ColourUtil::Interpolate(vertices[v].colour, vertices[v - 1].colour, lerp);
+				}
+
+				l.colour = colour;// vertices[v - 1].colour;
 				l.pos_x = x;
 				lutTable->push_back(l);
 			}
@@ -458,7 +485,7 @@ void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, in
 								float diffX = end - start;
 								float lerp = diffX / total;
 
-								Colour4 colour = ColourUtil::Interpolate(startLUT.colour, endLUT.colour, lerp);
+								Colour4 colour = ColourUtil::Interpolate(endLUT.colour, startLUT.colour, lerp);
 
 								SetFGColour(colour);
 							}
@@ -472,6 +499,8 @@ void Rasterizer::ScanlineInterpolatedFillPolygon2D(const Vertex2d * vertices, in
 				draw = !draw;
 			}
 		}
+
+		delete lutTable;
 	}
 }
 
@@ -481,6 +510,62 @@ void Rasterizer::DrawCircle2D(const Circle2D & inCircle, bool filled)
 	//Ex 2.5 Implement Rasterizer::DrawCircle2D method so that it can draw a filled circle.
 	//Note: For a simple solution, you can first attempt to draw an unfilled circle in the same way as drawing an unfilled polygon.
 	//Use Test 8 to test your solution
+
+	float radius = inCircle.radius;
+
+	float x = radius;
+	float y = 0;
+	float dx = 1;
+	float dy = 1;
+	int err = dx - ((int)radius << 1);
+
+	while (x >= y) {
+		if (filled) {
+			Vertex2d start;
+			Vertex2d end;
+			
+			start.colour = inCircle.colour;
+			end.colour = inCircle.colour;
+
+			start.position = Vector2(inCircle.centre[0] + x, inCircle.centre[1] + y);
+			end.position = Vector2(inCircle.centre[0] - x, inCircle.centre[1] + y);
+			Rasterizer::DrawLine2D(start, end, 1);
+
+			start.position = Vector2(inCircle.centre[0] + x, inCircle.centre[1] - y);
+			end.position = Vector2(inCircle.centre[0] - x, inCircle.centre[1] - y);
+			Rasterizer::DrawLine2D(start, end, 1);
+
+			start.position = Vector2(inCircle.centre[0] + y, inCircle.centre[1] + x);
+			end.position = Vector2(inCircle.centre[0] - y, inCircle.centre[1] + x);
+			Rasterizer::DrawLine2D(start, end, 1);
+
+			start.position = Vector2(inCircle.centre[0] + y, inCircle.centre[1] - x);
+			end.position = Vector2(inCircle.centre[0] - y, inCircle.centre[1] - x);
+			Rasterizer::DrawLine2D(start, end, 1);
+		}
+		else {
+			DrawPoint2D(Vector2(inCircle.centre[0] + x, inCircle.centre[1] + y));
+			DrawPoint2D(Vector2(inCircle.centre[0] + y, inCircle.centre[1] + x));
+			DrawPoint2D(Vector2(inCircle.centre[0] - y, inCircle.centre[1] + x));
+			DrawPoint2D(Vector2(inCircle.centre[0] - x, inCircle.centre[1] + y));
+			DrawPoint2D(Vector2(inCircle.centre[0] - x, inCircle.centre[1] - y));
+			DrawPoint2D(Vector2(inCircle.centre[0] - y, inCircle.centre[1] - x));
+			DrawPoint2D(Vector2(inCircle.centre[0] + y, inCircle.centre[1] - x));
+			DrawPoint2D(Vector2(inCircle.centre[0] + x, inCircle.centre[1] - y));
+		}
+
+		if (err <= 0) {
+			y++;
+			err += dy;
+			dy += 2;
+		}
+
+		if (err > 0) {
+			x--;
+			dx += 2;
+			err += dx - ((int)radius << 1);
+		}
+	}
 }
 
 Framebuffer *Rasterizer::GetFrameBuffer() const

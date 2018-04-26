@@ -194,7 +194,7 @@ void AppWindow::Render()
 
 	mRasterizer->SetGeometryMode(Rasterizer::LINE);
 	mRasterizer->SetFillMode(Rasterizer::INTERPOLATED_FILLED);
-	mRasterizer->DrawLine2D(c, p, 50);
+	mRasterizer->DrawLine2D(c, p, 1);
 	mRasterizer->SetFillMode(Rasterizer::SOLID_FILLED);
 
 	glDrawPixels(m_width, m_height, GL_RGBA, GL_FLOAT, buffer);
